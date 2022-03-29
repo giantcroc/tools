@@ -612,7 +612,7 @@ ENTRYPOINT ["/usr/local/bin/docker-entrypoint"]
 # Clang+LLVM
 ##############
 
-FROM ubuntu:xenial AS clang_context_amd64
+FROM ubuntu:focal AS clang_context_amd64
 FROM ubuntu:bionic AS clang_context_arm64
 # hadolint ignore=DL3006
 FROM clang_context_${TARGETARCH} AS clang_context
@@ -679,7 +679,7 @@ RUN set -eux; \
 # Bazel
 ###########
 
-FROM ubuntu:xenial AS bazel_context_amd64
+FROM ubuntu:focal AS bazel_context_amd64
 FROM ubuntu:bionic AS bazel_context_arm64
 # hadolint ignore=DL3006
 FROM bazel_context_${TARGETARCH} AS bazel_context
@@ -701,11 +701,100 @@ RUN chmod +x ${BAZELISK_BIN}
 RUN mv ${BAZELISK_BIN} /usr/local/bin/bazel
 
 ########################
+# SGX building
+########################
+FROM ubuntu:focal as builder
+
+ARG SDK_VERSION="2.15.100.3"
+ARG SGX_SDK_INSTALLER=sgx_linux_x64_sdk_${SDK_VERSION}.bin
+ARG DCAP_VERSION="1.12.100.3"
+
+# TODO: Modify the Istio Makefile to add a proxy or similar variable for easy setup
+RUN apt-get update \
+    && env DEBIAN_FRONTEND=noninteractive apt-get install -y \
+        wget \
+        unzip \
+        protobuf-compiler \
+        libprotobuf-dev \
+        build-essential \
+        cmake \
+        pkg-config \
+        gdb \
+        vim \
+        python3 \
+        git \
+        gnupg \
+    && apt-get -y -q upgrade \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Add 01.org to apt for SGX packages
+# hadolint ignore=DL4006
+# TODO: Modify the Istio Makefile to add a proxy or similar variable for easy setup
+RUN echo "deb [arch=amd64] https://download.01.org/intel-sgx/sgx_repo/ubuntu focal main" >> /etc/apt/sources.list.d/intel-sgx.list \
+    && wget -qO - https://download.01.org/intel-sgx/sgx_repo/ubuntu/intel-sgx-deb.key | apt-key add - \
+    # Install SGX PSW
+    && apt-get update \
+    && apt-get install --no-install-recommends -y \
+        libsgx-enclave-common=${SDK_VERSION}-focal1 \
+        libsgx-launch=${SDK_VERSION}-focal1 \
+        libsgx-launch-dev=${SDK_VERSION}-focal1 \
+        libsgx-epid=${SDK_VERSION}-focal1 \
+        libsgx-epid-dev=${SDK_VERSION}-focal1 \
+        libsgx-quote-ex=${SDK_VERSION}-focal1 \
+        libsgx-quote-ex-dev=${SDK_VERSION}-focal1 \
+        libsgx-urts=${SDK_VERSION}-focal1 \
+        libsgx-uae-service=${SDK_VERSION}-focal1 \
+        libsgx-ae-epid=${SDK_VERSION}-focal1 \
+        libsgx-ae-le=${SDK_VERSION}-focal1 \
+        libsgx-ae-pce=${SDK_VERSION}-focal1 \
+        libsgx-ae-qe3=${DCAP_VERSION}-focal1 \
+        libsgx-ae-qve=${DCAP_VERSION}-focal1 \
+        libsgx-dcap-ql=${DCAP_VERSION}-focal1 \
+        libsgx-dcap-ql-dev=${DCAP_VERSION}-focal1 \
+        libsgx-dcap-default-qpl-dev=${DCAP_VERSION}-focal1 \
+        libsgx-pce-logic=${DCAP_VERSION}-focal1 \
+        libsgx-qe3-logic=${DCAP_VERSION}-focal1 \
+        libsgx-dcap-default-qpl=${DCAP_VERSION}-focal1 \
+        libengine-pkcs11-openssl
+
+# SGX SDK is installed in /opt/intel directory.
+WORKDIR /opt/intel
+
+# Install SGX SDK
+# hadolint ignore=DL4006
+# TODO: Modify the Istio Makefile to add a proxy or similar variable for easy setup
+RUN wget https://download.01.org/intel-sgx/sgx-linux/2.15/distro/ubuntu20.04-server/$SGX_SDK_INSTALLER \
+    && chmod +x  $SGX_SDK_INSTALLER \
+    && echo "yes" | ./$SGX_SDK_INSTALLER \
+    && rm $SGX_SDK_INSTALLER \
+    && ls -l /opt/intel/
+
+# Intel crypto-api-toolkit prerequisites
+#https://github.com/intel/crypto-api-toolkit#software-requirements
+# TODO: Modify the Istio Makefile to add a proxy or similar variable for easy setup
+RUN set -x && apt-get update \
+    && apt-get install --no-install-recommends -y \
+        dkms libprotobuf17 autoconf \
+        autotools-dev libc6-dev \
+        libtool build-essential \
+        opensc sudo \
+        automake \
+    && apt-get clean \
+    && git clone https://github.com/intel/crypto-api-toolkit.git \
+    && cd /opt/intel/crypto-api-toolkit \
+    # disable building tests
+    && sed -i -e 's;test;;g' ./src/Makefile.am \
+    && ./autogen.sh \
+    && ./configure --enable-dcap  \
+    && make -j8 && make install
+
+########################
 # Final image for proxy
 ########################
 
-FROM ubuntu:xenial AS build_env_proxy_amd64
-ENV UBUNTU_RELEASE_CODE_NAME=xenial
+FROM ubuntu:focal AS build_env_proxy_amd64
+ENV UBUNTU_RELEASE_CODE_NAME=focal
 FROM ubuntu:bionic AS build_env_proxy_arm64
 ENV UBUNTU_RELEASE_CODE_NAME=bionic
 # hadolint ignore=DL3006
@@ -877,6 +966,42 @@ RUN chmod 777 /go && \
     chmod 777 /home/.cache && \
     chmod 777 /home/.helm && \
     chmod 777 /home/.gsutil
+
+ARG SDK_VERSION="2.15.100.3"
+ARG DCAP_VERSION="1.12.100.3"
+
+# TODO: Modify the Istio Makefile to add a proxy or similar variable for easy setup
+RUN apt-get update \
+    && apt-get install -y wget gnupg \
+    && echo "deb [arch=amd64] https://download.01.org/intel-sgx/sgx_repo/ubuntu focal main" >> /etc/apt/sources.list.d/intel-sgx.list \
+    && wget -qO - https://download.01.org/intel-sgx/sgx_repo/ubuntu/intel-sgx-deb.key | apt-key add - \
+    && sed -i '/deb-src/s/^# //' /etc/apt/sources.list \
+    && apt-get update \
+    && apt-get remove -y wget gnupg && apt-get autoremove -y \
+    && bash -c 'set -o pipefail; apt-get install --no-install-recommends -y \
+    libprotobuf17 \
+    libsgx-enclave-common=${SDK_VERSION}-focal1 \
+    libsgx-epid=${SDK_VERSION}-focal1 \
+    libsgx-quote-ex=${SDK_VERSION}-focal1 \
+    libsgx-urts=${SDK_VERSION}-focal1 \
+    libsgx-ae-epid=${SDK_VERSION}-focal1 \
+    libsgx-ae-qe3=${DCAP_VERSION}-focal1 \
+    libsgx-dcap-ql=${DCAP_VERSION}-focal1 \
+    libsgx-pce-logic=${DCAP_VERSION}-focal1 \
+    libsgx-qe3-logic=${DCAP_VERSION}-focal1 \
+    libsgx-dcap-default-qpl=${DCAP_VERSION}-focal1 \
+    libsofthsm2 libengine-pkcs11-openssl\
+    # required for pkcs11-tool
+    opensc | tee --append /usr/local/share/package-install.log' \
+    && rm -rf /var/cache/* \
+    && rm -rf  /var/log/*log /var/lib/apt/lists/* /var/log/apt/* /var/lib/dpkg/*-old /var/cache/debconf/*-old \
+    && ln -s /usr/lib/x86_64-linux-gnu/libsgx_enclave_common.so.1 /usr/lib/x86_64-linux-gnu/libsgx_enclave_common.so
+
+COPY --from=builder /usr/local/include/ /usr/local/include/
+COPY --from=builder /usr/include/sgx* /usr/include/
+COPY --from=builder /usr/local/lib/libp11* /usr/local/lib/
+COPY --from=builder /opt/intel /opt/intel
+ENV LD_LIBRARY_PATH="/usr/local/lib"
 
 # Clean up stuff we don't need in the final image
 RUN rm -rf /var/lib/apt/lists/*

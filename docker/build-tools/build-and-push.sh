@@ -47,7 +47,8 @@ fi
 # shellcheck disable=SC2086
 ${CONTAINER_CLI} ${CONTAINER_BUILDER} --target build_tools ${ADDITIONAL_BUILD_ARGS} --build-arg "ISTIO_TOOLS_SHA=${SHA}" --build-arg "VERSION=${VERSION}" -t "${HUB}/build-tools:${VERSION}" -t "${HUB}/build-tools:${BRANCH}-latest" .
 # shellcheck disable=SC2086
-${CONTAINER_CLI} ${CONTAINER_BUILDER} --target build_env_proxy ${ADDITIONAL_BUILD_ARGS} --build-arg "ISTIO_TOOLS_SHA=${SHA}" --build-arg "VERSION=${VERSION}" -t "${HUB}/build-tools-proxy:${VERSION}" -t "${HUB}/build-tools-proxy:${BRANCH}-latest" .
+# ${CONTAINER_CLI} ${CONTAINER_BUILDER} --target build_env_proxy ${ADDITIONAL_BUILD_ARGS} --build-arg http_proxy=http://child-prc.intel.com:913 --build-arg https_proxy=http://child-prc.intel.com:913 --build-arg "ISTIO_TOOLS_SHA=${SHA}" --build-arg "VERSION=${VERSION}" -t "${HUB}/build-tools-proxy:${VERSION}-sgx" -t "${HUB}/build-tools-proxy:${BRANCH}-latest-sgx" .
+${CONTAINER_CLI} ${CONTAINER_BUILDER} --target build_env_proxy ${ADDITIONAL_BUILD_ARGS} --build-arg "ISTIO_TOOLS_SHA=${SHA}" --build-arg "VERSION=${VERSION}" -t "${HUB}/build-tools-proxy:${VERSION}-sgx" -t "${HUB}/build-tools-proxy:${BRANCH}-latest-sgx" .
 if [[ "$(uname -m)" == "x86_64" ]]; then
 # shellcheck disable=SC2086
 ${CONTAINER_CLI} ${CONTAINER_BUILDER} ${ADDITIONAL_BUILD_ARGS} --build-arg "ISTIO_TOOLS_SHA=${SHA}" --build-arg "VERSION=${VERSION}" -t "${HUB}/build-tools-centos:${VERSION}" -t "${HUB}/build-tools-centos:${BRANCH}-latest" -f Dockerfile.centos .
