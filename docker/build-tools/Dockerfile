@@ -25,7 +25,7 @@
 # Binary tools
 ################
 
-ARG GOLANG_IMAGE=golang:1.18
+ARG GOLANG_IMAGE=golang:1.18.0
 # hadolint ignore=DL3006
 FROM ${GOLANG_IMAGE} as binary_tools_context
 # TARGETARCH is an automatic platform ARG enabled by Docker BuildKit.
@@ -40,17 +40,16 @@ ENV GCR_AUTH_VERSION=2.0.4
 ENV GO_BINDATA_VERSION=v3.1.2
 ENV GO_JUNIT_REPORT_VERSION=df0ed838addb0fa189c4d76ad4657f6007a5811c
 ENV GOCOVMERGE_VERSION=b5bfa59ec0adc420475f97f89b58045c721d761c
-ENV GOGO_PROTOBUF_VERSION=v1.3.2
 ENV GOIMPORTS_VERSION=v0.1.0
 ENV BENCHSTAT_VERSION=9c9101da8316
-ENV GH_VERSION=2.5.2
+ENV GH_VERSION=2.7.0
 ENV GOLANG_PROTOBUF_VERSION=v1.27.1
 ENV GOLANG_GRPC_PROTOBUF_VERSION=v1.2.0
 # When updating the golangci version, you may want to update the common-files config/.golangci* files as well.
 ENV GOLANGCI_LINT_VERSION=v1.44.0
-ENV HADOLINT_VERSION=v2.8.0
+ENV HADOLINT_VERSION=v2.10.0
 ENV HELM3_VERSION=v3.8.0
-ENV HUGO_VERSION=0.93.3
+ENV HUGO_VERSION=0.95.0
 ENV JB_VERSION=v0.3.1
 ENV JSONNET_VERSION=v0.15.0
 ENV JUNIT_MERGER_VERSION=adf1545b49509db1f83c49d1de90bbcb235642a8
@@ -70,7 +69,7 @@ ENV UPX_VERSION=3.96
 ENV YQ_VERSION=3.3.0
 ENV KPT_VERSION=v0.39.3
 ENV BUF_VERSION=v1.1.0
-ENV GCLOUD_VERSION=362.0.0
+ENV GCLOUD_VERSION=377.0.0
 ENV KUBETEST2_VERSION=92c12f91d13cbe9f17b62c7b0803d31e4c40431c
 ENV BOSKOSCTL_VERSION=c6d730e323f06da1b56dfa14bdab6d7d5dc22e2a
 ENV COSIGN_VERSION=v1.6.0
@@ -120,10 +119,6 @@ RUN mv /usr/bin/gh ${OUTDIR}/usr/bin
 # Build and install a bunch of Go tools
 RUN go install -ldflags="-s -w" google.golang.org/protobuf/cmd/protoc-gen-go@${GOLANG_PROTOBUF_VERSION}
 RUN go install -ldflags="-s -w" google.golang.org/grpc/cmd/protoc-gen-go-grpc@${GOLANG_GRPC_PROTOBUF_VERSION}
-RUN go install -ldflags="-s -w" github.com/gogo/protobuf/protoc-gen-gofast@${GOGO_PROTOBUF_VERSION}
-RUN go install -ldflags="-s -w" github.com/gogo/protobuf/protoc-gen-gogofast@${GOGO_PROTOBUF_VERSION}
-RUN go install -ldflags="-s -w" github.com/gogo/protobuf/protoc-gen-gogofaster@${GOGO_PROTOBUF_VERSION}
-RUN go install -ldflags="-s -w" github.com/gogo/protobuf/protoc-gen-gogoslick@${GOGO_PROTOBUF_VERSION}
 RUN go install -ldflags="-s -w" github.com/uber/prototool/cmd/prototool@${PROTOTOOL_VERSION}
 RUN go install -ldflags="-s -w" github.com/nilslice/protolock/cmd/protolock@${PROTOLOCK_VERSION}
 RUN go install -ldflags="-s -w" golang.org/x/tools/cmd/goimports@${GOIMPORTS_VERSION}
@@ -148,9 +143,7 @@ RUN go install -ldflags="-s -w" istio.io/tools/cmd/annotations_prep@${ISTIO_TOOL
 RUN go install -ldflags="-s -w" istio.io/tools/cmd/cue-gen@${ISTIO_TOOLS_SHA}
 RUN go install -ldflags="-s -w" istio.io/tools/cmd/envvarlinter@${ISTIO_TOOLS_SHA}
 RUN go install -ldflags="-s -w" istio.io/tools/cmd/testlinter@${ISTIO_TOOLS_SHA}
-RUN go install -ldflags="-s -w" istio.io/tools/cmd/protoc-gen-deepcopy@${ISTIO_TOOLS_SHA}
 RUN go install -ldflags="-s -w" istio.io/tools/cmd/protoc-gen-golang-deepcopy@${ISTIO_TOOLS_SHA}
-RUN go install -ldflags="-s -w" istio.io/tools/cmd/protoc-gen-jsonshim@${ISTIO_TOOLS_SHA}
 RUN go install -ldflags="-s -w" istio.io/tools/cmd/protoc-gen-golang-jsonshim@${ISTIO_TOOLS_SHA}
 RUN go install -ldflags="-s -w" istio.io/tools/cmd/kubetype-gen@${ISTIO_TOOLS_SHA}
 RUN go install -ldflags="-s -w" istio.io/tools/cmd/license-lint@${ISTIO_TOOLS_SHA}
@@ -307,7 +300,7 @@ ENV BABEL_PRESET_ENV=v7.7.4
 ENV BABEL_PRESET_MINIFY_VERSION=v0.5.1
 ENV LINKINATOR_VERSION=v2.0.5
 ENV MARKDOWN_SPELLCHECK_VERSION=v1.3.1
-ENV NODEJS_VERSION=12.8.0
+ENV NODEJS_VERSION=12.22.11
 ENV SASS_LINT_VERSION=v1.13.1
 ENV SASS_VERSION=v1.23.7
 ENV SVGO_VERSION=v1.3.0
@@ -364,7 +357,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # Pinned versions of stuff we pull in
 ENV AWESOMEBOT_VERSION=1.20.0
-ENV FPM_VERSION=1.12.0
+# Sometime between 1.14.1 and 1.14.2 to pull in some fixes for deb
+ENV FPM_VERSION=eb5370d16e361db3f1425f8c898bafe7f3c66869
 ENV HTMLPROOFER_VERSION=3.19.0
 ENV LICENSEE_VERSION=9.15.1
 ENV MDL_VERSION=0.11.0
@@ -379,7 +373,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     zlib1g-dev \
     cmake \
     pkg-config \
-    libssl-dev
+    libssl-dev \
+    git
 
 # RUN add-apt-repository -y ppa:brightbox/ruby-ng-experimental
 # TODO revert when arm64 version ready https://groups.google.com/g/brightbox-ruby-ubuntu-packaging/c/8JLWIsW_DWc
@@ -394,7 +389,11 @@ RUN gem install --no-wrappers --no-document mdl -v ${MDL_VERSION}
 RUN gem install --no-wrappers --no-document html-proofer -v ${HTMLPROOFER_VERSION}
 RUN gem install --no-wrappers --no-document awesome_bot -v ${AWESOMEBOT_VERSION}
 RUN gem install --no-wrappers --no-document licensee -v ${LICENSEE_VERSION}
-RUN gem install --no-wrappers --no-document fpm -v ${FPM_VERSION}
+# hadolint ignore=DL3003,DL3028
+RUN git clone https://github.com/jordansissel/fpm && \
+    cd fpm && \
+    git reset --hard ${FPM_VERSION} && \
+    make install
 
 ##############
 # Python
@@ -441,9 +440,9 @@ FROM ubuntu:focal as base_os_context
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-ENV DOCKER_VERSION=5:20.10.12~3-0~ubuntu-focal
-ENV CONTAINERD_VERSION=1.4.12-1
-ENV TRIVY_VERSION=0.24.2
+ENV DOCKER_VERSION=5:20.10.14~3-0~ubuntu-focal
+ENV CONTAINERD_VERSION=1.5.11-1
+ENV TRIVY_VERSION=0.25.0
 
 ENV OUTDIR=/out
 
@@ -810,8 +809,8 @@ LABEL "io.istio.repo"="https://github.com/istio/tools"
 LABEL "io.istio.version"="${VERSION}"
 
 # Docker
-ENV DOCKER_VERSION=5:20.10.6~3-0~ubuntu-${UBUNTU_RELEASE_CODE_NAME}
-ENV CONTAINERD_VERSION=1.4.4-1
+ENV DOCKER_VERSION=5:20.10.7~3-0~ubuntu-${UBUNTU_RELEASE_CODE_NAME}
+ENV CONTAINERD_VERSION=1.4.6-1
 
 # General
 ENV HOME=/home
